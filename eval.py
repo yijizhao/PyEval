@@ -25,16 +25,21 @@ class Evaluator:
         return qd
 
     def precision(self):
-        qd = self.qd
-        for q, t in qd.items():
-            qd[q] = t[0] / (t[1] + t[0])
-        return qd
+        qdp = {}
+        for q, t in self.qd.items():
+            qdp[q] = t[0] / (t[1] + t[0])
+        return qdp
 
     def recall(self):
-        qd = self.qd
-        for q, t in qd.items():
-            qd[q] = t[0] / self.inf[q]
-        return qd
+        qdr = {}
+        for q, t in self.qd.items():
+            qdr[q] = t[0] / self.inf[q]
+        return qdr
+
+    def f_measure(self, beta, i):
+        P = self.precision()[i]
+        R = self.recall()[i]
+        return ((beta**2+1)*P*R)/(beta**2*P+R)
 
     def conf_matrix(self, i):
         return [[self.qd[i][0], self.qd[i][1]],
@@ -47,4 +52,7 @@ M = [['R', 'N', 'R', 'N', 'R', 'R', 'N', 'N', 'R', 'N'],
      ['R', 'N', 'R', 'N', 'R', 'N', 'R', 'N', 'N', 'N']]
 inf = {'tot': 250, 'q1': 10, 'q2': 12, 'q3': 15, 'q4': 8}
 ev = Evaluator(M, inf)
-print ev.frame_ord(ev.conf_matrix('q3'), ['sel', 'nosel'], ['cor', 'nocor'])
+#print ev.frame_ord(ev.conf_matrix('q3'), ['sel', 'nosel'], ['cor', 'nocor'])
+print ev.precision()
+print ev.recall()
+print ev.f_measure(1.0, 'q3')
