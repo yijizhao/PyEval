@@ -90,6 +90,9 @@ class Evaluator:
 
     def Kappa(self, m2):
         km = self.kMeasure(m2)
+        #P(A)
+        #P(E)
+        #Kappa = P(A) - P(E) / 1 - P(E)
 
 #-------------------------------------------------------------
 #initial annotator
