@@ -54,23 +54,25 @@ class Evaluator:
         m = self.conf_matrix(i)
         return (m['tp'] + m['tn']) / (m['tp'] + m['tn'] + m['fp'] + m['fn'])
 
-    def qRank(self, i):
+    def qRank(self, i, k):
         ii, qr = self.m[int(i.replace('q', ''))-1], []
         r, relv, ri = 0, 0, 1.00/float(self.inf[i])
-        for x in range(0, len(ii)):
+        for x in range(0, k):
+            rsw = ''
             if ii[x] is 'R':
-                r += ri
-                relv += 1
-            qr.append([x+1, r, relv/float(x+1)])
+                r += ri; relv += 1; rsw = 'X'
+            qr.append([x+1, rsw, r, relv/float(x+1)])
+        print ev.frame_mat(qr, ['rank', 'rel', 'R', 'P'])
         return qr
 
-    def MAP(self):
+    def MAP(self, k):
         tl = []
         for i in range(0, len(self.m)):
-            m, tot = self.qRank('q'+str(i+1)), 0
+            m, tot, c = self.qRank('q'+str(i+1), k), 0, 0
             for j in range(0, len(m)):
-                tot += m[j][2]
-            tl.append(tot/len(m))
+                if m[j][1] is 'X':
+                    tot += m[j][3]; c += 1
+            tl.append(tot/c)
         return sum(tl)/len(self.m)
 
 #-------------------------------------------------------------
@@ -81,11 +83,11 @@ M = [['R', 'N', 'R', 'N', 'R', 'R', 'N', 'N', 'R', 'N'],  # q1
 inf = {'tot': 250, 'q1': 10, 'q2': 12, 'q3': 15, 'q4': 8}
 ev = Evaluator(M, inf)
 
-q = 'q2'
+q = 'q1'
 #print ev.conf_matrix(q)
 #print ev.precision(q)
 #print ev.recall(q)
 #print ev.f_measure(1.0, q)
 #print ev.accuracy(q)
 #print ev.frame_mat(ev.qRank(q), ['rank', 'R', 'P'])
-print ev.MAP()
+print ev.MAP(5)
