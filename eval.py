@@ -1,4 +1,5 @@
 __author__ = 'chris'
+__file__ = 'eval.py'
 
 from pandas import DataFrame
 
@@ -6,17 +7,24 @@ from pandas import DataFrame
 class Evaluator:
 
     def __init__(self, m, inf):
+        """ This class is used to evaluate an information retrieval
+        system based on Relevant / Non-relevant annotations and general
+        information concerning the document, check main() for examples. """
         self.m = m
         self.inf = inf
         self.qd = self.rn_matrix(m)
 
     def frame_ord(self, data, r, c):
+        """ Frames almost all matrices in this evaluator. """
         return DataFrame(data, index=r, columns=c)
 
     def frame_mat(self, data, c):
+        """ Used to frame the qrank. """
         return DataFrame(data, columns=c)
 
     def rn_matrix(self, m):
+        """ The RN matrix returns tuples per Query in the
+        form of (Relevant, Non-relevant). """
         qd = {}
         for i in range(0, len(m)):
             rel, nrel = 0.0, 0.0
@@ -29,6 +37,9 @@ class Evaluator:
         return qd
 
     def conf_matrix(self, i):
+        """ This is a basic confusion matrix with false/
+        true postives/negatives based on the actual relevance
+        and the retrieved relevance. """
         tp = self.qd[i][0]
         fp = self.qd[i][1]
         fn = self.inf[i] - self.qd[i][0]
@@ -54,7 +65,10 @@ class Evaluator:
         m = self.conf_matrix(i)
         return (m['tp'] + m['tn']) / (m['tp'] + m['tn'] + m['fp'] + m['fn'])
 
-    def qRank(self, i, k):
+    def qrank(self, i, k):
+        """ Goes down the query retrieved R/N and calculates
+        their precision (relv/float(x+1) and recall, as well
+        as ranks them. """
         ii, qr = self.m[int(i.replace('q', ''))-1], []
         r, relv, ri = 0, 0, 1.00/float(self.inf[i])
         for x in range(0, k):
@@ -64,17 +78,23 @@ class Evaluator:
             qr.append([x+1, rsw, r, relv/float(x+1)])
         return qr
 
-    def MAP(self, k):
+    def map(self, k):
+        """ Grabs only relevant averages from qrank. """
         tl = []
         for i in range(0, len(self.m)):
-            m, tot, c = self.qRank('q'+str(i+1), k), 0, 0
+            m, tot, c = self.qrank('q'+str(i+1), k), 0, 0
             for j in range(0, len(m)):
                 if m[j][1] is 'X':
                     tot += m[j][3]; c += 1
-            tl.append(tot/c)
+            try:
+                tl.append(tot/c)
+            except ZeroDivisionError:
+                tl.append(0.0)
         return sum(tl)/len(self.m)
 
-    def kMeasure(self, m2):
+    def kmeasure(self, m2):
+        """ The kmeasure simply matricifies the agreements
+        between annotator X and Y. """
         m, rr, nn, rn, nr = self.m, 0, 0, 0, 0
         for i in range(0, len(self.m)):
             for j in range(0, len(self.m[i])):
@@ -86,35 +106,58 @@ class Evaluator:
                     rn += 1
                 elif m[i][j] is 'N' and m2[i][j] is 'R':
                     nr += 1
-        return {'RR': rr, 'NN': nn, 'RN': rn, 'NR': nr}
+        return {'rr': float(rr), 'nn': float(nn), 'rn': float(rn), 'nr': float(nr)}
 
-    def Kappa(self, m2):
-        km = self.kMeasure(m2)
-        #P(A)
-        #P(E)
-        #Kappa = P(A) - P(E) / 1 - P(E)
+    def kappa(self, m2):
+        """ Kappa grabs pa - pe / 1 - pe based on agreement. """
+        km = self.kmeasure(m2)
+        pa = (km['rr'] + km['nn']) / sum(km.values())
+        pn = (km['nr'] + km['nn'] + km['rn'] + km['nn']) / (sum(km.values()) * 2)
+        pr = (km['rr'] + km['rn'] + km['rr'] + km['nr']) / (sum(km.values()) * 2)
+        pe = pn**2 + pr**2
+        return (pa - pe) / (1 - pe)
 
-#-------------------------------------------------------------
-#initial annotator
-M  = [['R', 'N', 'R', 'N', 'R', 'R', 'N', 'N', 'R', 'N'],  # q1
-      ['R', 'R', 'N', 'N', 'R', 'N', 'N', 'R', 'N', 'N'],  # q2
-      ['N', 'R', 'R', 'R', 'R', 'N', 'N', 'N', 'R', 'N'],  # q3
-      ['R', 'N', 'R', 'N', 'R', 'N', 'R', 'N', 'N', 'N']]  # q4
-#second annotator
-M2 = [['R', 'R', 'R', 'R', 'R', 'R', 'N', 'N', 'N', 'N'],  # q1
-      ['R', 'R', 'R', 'N', 'R', 'N', 'N', 'N', 'N', 'N'],  # q2
-      ['N', 'R', 'R', 'R', 'R', 'N', 'N', 'N', 'R', 'N'],  # q3
-      ['R', 'N', 'R', 'N', 'R', 'N', 'N', 'N', 'N', 'N']]  # q4
-#general information
-inf = {'tot': 250, 'q1': 10, 'q2': 12, 'q3': 15, 'q4': 8}
 
-ev = Evaluator(M, inf)
-q = 'q1'
-#print ev.conf_matrix(q)
-#print ev.precision(q)
-#print ev.recall(q)
-#print ev.f_measure(1.0, q)
-#print ev.accuracy(q)
-#print ev.frame_mat(ev.qRank(q), ['rank', 'R', 'P'])
-#print ev.MAP(10)
-print ev.kMeasure(M2)
+def main():
+    #--------------------------------------------------------------
+
+    #initial annotator
+    M  = [['R', 'N', 'R', 'N', 'R', 'R', 'N', 'N', 'R', 'N'],  # q1
+          ['R', 'R', 'N', 'N', 'R', 'N', 'N', 'R', 'N', 'N'],  # q2
+          ['N', 'R', 'R', 'R', 'R', 'N', 'N', 'N', 'R', 'N'],  # q3
+          ['R', 'N', 'R', 'N', 'R', 'N', 'R', 'N', 'N', 'N']]  # q4
+    #second annotator
+    M2 = [['R', 'R', 'R', 'R', 'R', 'R', 'N', 'N', 'N', 'N'],  # q1
+          ['R', 'R', 'R', 'N', 'R', 'N', 'N', 'N', 'N', 'N'],  # q2
+          ['N', 'R', 'R', 'R', 'R', 'N', 'N', 'N', 'R', 'N'],  # q3
+          ['R', 'N', 'R', 'N', 'R', 'N', 'N', 'N', 'N', 'N']]  # q4
+    #general information
+    inf = {'tot': 250, 'q1': 10, 'q2': 12, 'q3': 15, 'q4': 8}
+
+    #--------------------------------------------------------------
+    ev = Evaluator(M, inf)
+    res, conf, tab = [], [], []
+
+    for i in range(0, len(M)):
+        q = 'q'+str(i+1)
+        res.append([ev.precision(q),
+                    ev.recall(q),
+                    ev.f_measure(1.0, q),
+                    ev.accuracy(q)])
+        conf.append(ev.conf_matrix(q))
+
+    eva = [ev.map(1),
+           ev.map(3),
+           ev.map(5),
+           ev.map(10),
+           ev.kappa(M2)]
+
+    print ev.frame_ord([[round(y, 3) for y in x] for x in res],
+                       ['q1', 'q2', 'q3', 'q4'],
+                       ['P', 'R', 'F', 'A'])
+    print ev.frame_ord([round(y, 3) for y in eva],
+                       ['map(1)', 'map(3)', 'map(5)', 'map(10)', 'kappa'],
+                       [''])
+
+if __name__ == '__main__':
+    main()
