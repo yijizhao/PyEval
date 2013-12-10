@@ -65,7 +65,7 @@ class Evaluator:
         m = self.conf_matrix(i)
         return (m['tp'] + m['tn']) / (m['tp'] + m['tn'] + m['fp'] + m['fn'])
 
-    def qrank(self, i, k):
+    def qrank(self, i, k, p=None):
         """ Goes down the query retrieved R/N and calculates
         their precision (relv/float(x+1) and recall, as well
         as ranks them. """
@@ -76,13 +76,14 @@ class Evaluator:
             if ii[x] is 'R':
                 r += ri; relv += 1; rsw = 'X'
             qr.append([x+1, rsw, r, relv/float(x+1)])
+        if p: print self.frame_mat(qr, ['rank', 'rel', 'R', 'P'])
         return qr
 
-    def map(self, k):
+    def map(self, k, p=None):
         """ Grabs only relevant averages from qrank. """
         tl = []
         for i in range(0, len(self.m)):
-            m, tot, c = self.qrank('q'+str(i+1), k), 0, 0
+            m, tot, c = self.qrank('q'+str(i+1), k, p), 0, 0
             for j in range(0, len(m)):
                 if m[j][1] is 'X':
                     tot += m[j][3]; c += 1
@@ -144,7 +145,7 @@ def main():
                     ev.recall(q),
                     ev.f_measure(1.0, q),
                     ev.accuracy(q)])
-        conf.append(ev.conf_matrix(q))
+        conf.append(ev.conf_matrix(q).values())
 
     eva = [ev.map(1),
            ev.map(3),
@@ -152,6 +153,15 @@ def main():
            ev.map(10),
            ev.kappa(M2)]
 
+    #only for debugging, produces crap
+    ev.map(1, 'print')
+    ev.map(3, 'print')
+    ev.map(5, 'print')
+    ev.map(10, 'print')
+
+    print ev.frame_ord(conf,
+                       ['q1', 'q2', 'q3', 'q4'],
+                       ['fp', 'tn', 'fn', 'tp']), '\n'
     print ev.frame_ord([[round(y, 3) for y in x] for x in res],
                        ['q1', 'q2', 'q3', 'q4'],
                        ['P', 'R', 'F', 'A'])
